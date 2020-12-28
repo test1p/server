@@ -28,6 +28,9 @@ class UpdateUserRequest extends ApiRequest
             'address' => 'required|string',
             'emg_phone' => 'required|digits_between:10,11',
             'emg_relation' => 'required|string',
+            'role' => [
+                Rule::in([100, 50]),
+            ],
         ];
     }
     public function userAttributes()
@@ -36,6 +39,7 @@ class UpdateUserRequest extends ApiRequest
             'name',
             'furigana',
             'sex',
+            'role'
         ]);
     }
 }

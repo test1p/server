@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Ticket;
 
 class PaymentController extends Controller
 {
@@ -46,6 +47,12 @@ class PaymentController extends Controller
             'auto_advance' => true,
         ]);
         
+        for ($i = 0; $i < $invoice_item['price']['metadata']['add']; $i++)
+        {
+            $tickets[] = new Ticket;
+        }
+        $user->tickets()->saveMany($tickets);
+        
         return response()->json(['data' => $invoice_item], 201);
     }
     
@@ -80,12 +87,17 @@ class PaymentController extends Controller
         
         $invoice->delete();
         
+        $user->tickets()->latest()->take($invoice['lines']['data'][0]['price']['metadata']['add'])->delete();
+        
         return response()->json(['data' => $invoice], 201);
     }
     
     public function readPrices()
     {
-        $prices = \Stripe\Price::all(['type' => 'one_time']);
-        return response()->json(['data' => $prices['data']], 200);
+        $prices = \Stripe\Price::all(['active' => true, 'type' => 'one_time']);
+        $type = 'general';
+        if (auth()->user()->subscription_id) $type = 'subscription';
+        $prices = collect($prices['data'])->where('metadata.type', $type)->values();
+        return response()->json(['data' => $prices], 200);
     }
 }

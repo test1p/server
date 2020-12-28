@@ -28,8 +28,12 @@ class CreateUsersTable extends Migration
             $table->string('customer_id')->nullable();
             $table->string('payment_method_id')->nullable();
             $table->string('subscription_id')->nullable();
+            $table->tinyInteger('priority_difficulty')->default(0);
+            $table->tinyInteger('priority_age')->default(0);
+            $table->string('belonging')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
             
             $table->unique(['provider_name', 'provider_uid']);
         });

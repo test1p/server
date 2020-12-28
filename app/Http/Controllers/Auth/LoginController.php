@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class LoginController extends Controller
 {
@@ -17,7 +18,11 @@ class LoginController extends Controller
     
     protected function authenticated(Request $request, $user)
     {
-        return response()->json(['message' => 'ログインしました', 'user' => $user], 200);
+        $user->tickets_count = $user->withCount('tickets')->find($user->id)->tickets_count;
+        $user->age = Carbon::parse($user->birth_date)->age;
+        $user->entries = $user->entries()->get()->pluck('id');
+        
+        return response()->json(['message' => 'ログインしました', 'data' => $user], 200);
     }
     
     protected function loggedOut(Request $request)

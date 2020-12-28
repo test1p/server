@@ -30,6 +30,9 @@ class StoreUserRequest extends ApiRequest
             'address' => 'required|string',
             'emg_phone' => 'required|digits_between:10,11',
             'emg_relation' => 'required|string',
+            'role' => [
+                Rule::in([100, 50]),
+            ],
         ];
     }
 
@@ -40,6 +43,7 @@ class StoreUserRequest extends ApiRequest
             'furigana',
             'birth_date',
             'sex',
+            'role'
         ]);
     }
 }

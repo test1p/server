@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use App\Http\Requests\UpdateEmailRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use Illuminate\Support\Facades\Hash;
+use App\TimekeepingCard;
 
 class UserController extends Controller
 {
@@ -20,6 +21,9 @@ class UserController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $user->tickets_count = $user->withCount('tickets')->find($user->id)->tickets_count;
+        $user->age = Carbon::parse($user->birth_date)->age;
+        $user->entries = $user->entries()->get()->pluck('id');
         
         if ($user->customer_id) {
             $customer = \Stripe\Customer::retrieve($user->customer_id);
@@ -28,7 +32,6 @@ class UserController extends Controller
             $user->phone = $customer['phone'];
             $user->emg_phone = $customer['metadata']['emg_phone'];
             $user->emg_relation = $customer['metadata']['emg_relation'];
-            $user->coupon = $customer['metadata']['coupon'];
         }
         
         if ($user->payment_method_id) {
@@ -54,8 +57,7 @@ class UserController extends Controller
             'metadata' => [
                 'user_id' => $user->id,
                 'emg_phone' => $request->emg_phone, 
-                'emg_relation' => $request->emg_relation, 
-                'coupon' => 0,
+                'emg_relation' => $request->emg_relation,
             ],
             'name' => $request->name,
             'phone' => $request->phone,
@@ -86,7 +88,7 @@ class UserController extends Controller
         
         $user->fill($request->userAttributes())->save();
         
-        return response()->json(['data' => $user], 201);
+        return response()->json(['data' => $user, 'user' => true], 201);
     }
     
     public function destroy()
@@ -103,7 +105,7 @@ class UserController extends Controller
         return response()->json(['data' => $user], 201);
     }
     
-    public function readReferralCode()
+    public function createReferralCode()
     {
         $user = auth()->user();
         
@@ -113,13 +115,15 @@ class UserController extends Controller
         
         if (!$user->subscription_id) return response()->json(['errors' => '先にプランを登録してください'], 403);
         
-        $customer = \Stripe\Customer::retrieve($user->customer_id);
         
         $referral_code = \Stripe\PromotionCode::create([
-            'coupon' => $customer['metadata']['coupon'] + 1,
-            'customer' => $user->customer_id,
+            'coupon' => config('services.stripe.referral_coupon'),
+            'metadata' => [
+                'customer_id' => $user->customer_id
+            ],
             'expires_at' => Carbon::now('Asia/Tokyo')->addWeek()->timestamp,
         ]);
+        
         return response()->json(['data' => $referral_code], 200);
     }
     
@@ -152,5 +156,45 @@ class UserController extends Controller
 
         return response()->json(['message' => 'パスワードを変更しました'], 201);
     }
+    
+    public function readSimplify()
+    {
+        $user = auth()->user();
+        $user->tickets_count = $user->withCount('tickets')->find($user->id)->tickets_count;
+        $user->age = Carbon::parse($user->birth_date)->age;
+        
+        if ($user->timekeepingCards) {
+            $user->timekeeping_cards = $user->timekeepingCards;
+        }
+        
+        return response()->json(['data' => $user], 200);
+    }
+    
+    public function updateSimplify(Request $request)
+    {
+        $user = auth()->user();
+        $user->priority_difficulty = $request->priority_difficulty;
+        $user->priority_age = $request->priority_age;
+        $user->belonging = $request->belonging;
+        $user->save();
+        if ($request->timekeeping_cards) {
+            foreach ($request->timekeeping_cards as $timekeeping_card) {
+                if ($user->timekeepingCards()->find($timekeeping_card['id'])) {
+                    $user->timekeepingCards()->detach($timekeeping_card['id']);
+                }
+                $user->timekeepingCards()->attach($timekeeping_card['id'], [
+                    'timekeeping_card_num' => $timekeeping_card['timekeeping_card_num']
+                ]);
+            }
+        }
 
+        return response()->json(['data' => $user], 201);
+    }
+    
+    public function readTimekeepingCards()
+    {
+        $timekeeping_cards = TimekeepingCard::all();
+        
+        return response()->json(['data' => $timekeeping_cards], 200);
+    }
 }

@@ -55,6 +55,8 @@ class PaymentMethodController extends Controller
         
         if (!$user->payment_method_id) return response()->json(['errors' => '決済方法が未登録です'], 403);
         
+        if ($user->subscription_id) return response()->json(['errors' => '先にプランを解約してください'], 403);
+        
         $payment_method = \Stripe\PaymentMethod::retrieve($user->payment_method_id);
         $payment_method->detach();
     

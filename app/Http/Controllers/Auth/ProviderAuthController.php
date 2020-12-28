@@ -43,8 +43,14 @@ class ProviderAuthController extends Controller
             ]
         );
         auth()->login($user, true);
-        return auth()->user()
-            ? response()->json(['message' => 'ログインしました', 'user' => auth()->user()], 200)
-            : response()->json(['errors' => 'ログインに失敗しました'], 401);
+        $user = auth()->user();
+        
+        if (!$user) return response()->json(['errors' => 'ログインに失敗しました'], 401);
+        
+        $user->tickets_count = $user->withCount('tickets')->find($user->id)->tickets_count;
+        $user->age = Carbon::parse($user->birth_date)->age;
+        $user->entries = $user->entries()->get()->pluck('id');
+        
+        return response()->json(['message' => 'ログインしました', 'data' => $user], 200);
     }
 }

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Ticket;
+use App\Entry;
+use Carbon\Carbon;
 
 class SubscriptionController extends Controller
 {
@@ -22,31 +25,28 @@ class SubscriptionController extends Controller
         if ($user->subscription_id) return response()->json(['errors' => '既にプラン登録済みです'], 403);
         
         $code = $request->code;
-        $coupon = null;
+        $promotion_code = null;
         
         if ($code) {
             $promotion_codes = \Stripe\PromotionCode::all(['code' => $code]);
             $promotion_code = $promotion_codes['data'][0];
         
-            if (!$promotion_code) return response()->json(['errors' => ['done' => [0 => '紹介コードに誤りがあります']]], 422);
+            if (!$promotion_code) return response()->json(['errors' => ['done' => [0 => 'クーポンコードに誤りがあります']]], 422);
             
-            if ($promotion_code['customer']) {
+            if ($promotion_code['metadata']['customer_id']) {
                 \Stripe\Customer::update(
-                    $promotion_code['customer'],
+                    $promotion_code['metadata']['customer_id'],
                     [
                         'promotion_code' => $promotion_code['id'],
-                        'metadata' => [
-                            'coupon' => $promotion_code['coupon']['id'],
-                        ],
                     ]
                 );
-            }
             
-            $coupon = config('services.stripe.referral_coupon');
+                if ($promotion_code['metadata']['customer_id'] === $user->customer_id) $promotion_code = null;
+            }
         }
         
         $subscription = \Stripe\Subscription::create([
-            'coupon' => $coupon,
+            'promotion_code' => $promotion_code,
             'customer' => $user->customer_id,
             'default_tax_rates' => config('services.stripe.default_tax_rates'),
             'items' => [
@@ -59,6 +59,11 @@ class SubscriptionController extends Controller
             ],
         ]);
         
+        for ($i = 0; $i < $subscription['items']['data'][0]['price']['metadata']['add']; $i++)
+        {
+            $tickets[] = new Ticket;
+        }
+        $user->tickets()->saveMany($tickets);
         $user->subscription_id = $subscription['id'];
         $user->save();
         
@@ -105,15 +110,23 @@ class SubscriptionController extends Controller
         $subscription = \Stripe\Subscription::retrieve($subscription_id);
         $subscription->cancel();
         
+        if (!$user->tickets->first()) {
+            $user_entry = $user->entries()->latest()->first();
+            $user->tickets()->onlyTrashed()->where('entry_id', $user_entry['pivot']['id'])->restore();
+            $user->tickets()->where('entry_id', $user_entry['pivot']['id'])->update(['entry_id' => null]);
+            $user->entries()->detach($user_entry->id);
+        }
+        
+        $user->tickets()->latest()->first()->delete();
         $user->subscription_id = null;
         $user->save();
         
-        return response()->json(['data' => $user], 201);
+        return response()->json(['data' => $user, 'user' => true], 201);
     }
     
     public function readPrices()
     {
-        $prices = \Stripe\Price::all(['type' => 'recurring']);
+        $prices = \Stripe\Price::all(['active' => true, 'type' => 'recurring']);
         return response()->json(['data' => $prices['data']], 200);
     }
 }
