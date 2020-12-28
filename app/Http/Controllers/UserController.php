@@ -66,7 +66,7 @@ class UserController extends Controller
         
         $user->fill($request->userAttributes())->save();
         
-        return response()->json(['data' => $user], 201);
+        return response()->json(['data' => $user, 'user' => true], 201);
     }
     
     public function update(UpdateUserRequest $request)

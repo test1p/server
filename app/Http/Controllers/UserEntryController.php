@@ -44,7 +44,7 @@ class UserEntryController extends Controller
         
         $user_entry = $user->entries()->find($id);
         
-        $user->tickets()->oldest()->take($ticket_cost)->update(['entry_id' => $user_entry['pivot']['id']]);
+        $user->tickets()->oldest()->limit($ticket_cost)->update(['entry_id' => $user_entry['pivot']['id']]);
         $user->tickets()->where('entry_id', $user_entry['pivot']['id'])->delete();
         
         return response()->json(['data' => $user_entry, 'user' => true], 201);
