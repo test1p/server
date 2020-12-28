@@ -117,7 +117,7 @@ class SubscriptionController extends Controller
             $user->entries()->detach($user_entry->id);
         }
         
-        $user->tickets()->latest()->first()->delete();
+        $user->tickets()->latest()->first()->forceDelete();
         $user->subscription_id = null;
         $user->save();
         

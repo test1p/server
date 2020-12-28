@@ -45,7 +45,7 @@ class UserEntryController extends Controller
         $user_entry = $user->entries()->find($id);
         
         $user->tickets()->oldest()->limit($ticket_cost)->update(['entry_id' => $user_entry['pivot']['id']]);
-        $user->tickets()->where('entry_id', $user_entry['pivot']['id'])->delete();
+        $user->tickets()->whereNotNull('entry_id')->where('entry_id', $user_entry['pivot']['id'])->delete();
         
         return response()->json(['data' => $user_entry, 'user' => true], 201);
     }
@@ -82,7 +82,7 @@ class UserEntryController extends Controller
         
         if ($entry_ended_at >= $now) {
             $user->tickets()->onlyTrashed()->where('entry_id', $user_entry['pivot']['id'])->restore();
-            $user->tickets()->where('entry_id', $user_entry['pivot']['id'])->update(['entry_id' => null]);
+            $user->tickets()->whereNotNull('entry_id')->where('entry_id', $user_entry['pivot']['id'])->update(['entry_id' => null]);
             $user->entries()->detach($id);
         }
         else {
