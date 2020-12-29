@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 
-Route::get('/', 'EventController@index');
+Route::get('/home', 'EventController@index');
 Route::apiResource('/game', 'GameController', ['only' => ['index', 'show']]);
     
 Route::group(["middleware" => "guest:api"], function () {

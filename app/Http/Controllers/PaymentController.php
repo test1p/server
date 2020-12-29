@@ -87,7 +87,10 @@ class PaymentController extends Controller
         
         $invoice->delete();
         
-        $user->tickets()->latest()->take($invoice['lines']['data'][0]['price']['metadata']['add'])->delete();
+        $tickets = $user->tickets()->latest()->limit($invoice['lines']['data'][0]['price']['metadata']['add'])->get();
+        foreach ($tickets as $ticket) {
+            $ticket->delete();
+        }
         
         return response()->json(['data' => $invoice], 201);
     }
