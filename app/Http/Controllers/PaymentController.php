@@ -85,12 +85,12 @@ class PaymentController extends Controller
         
         if ($invoice['status'] !== 'draft') return response()->json(['errors' => '支払完了のためキャンセルできません'], 403);
         
-        $invoice->delete();
-        
         $tickets = $user->tickets()->latest()->limit($invoice['lines']['data'][0]['price']['metadata']['add'])->get();
         foreach ($tickets as $ticket) {
-            $ticket->delete();
+            $ticket->forceDelete();
         }
+        
+        $invoice->delete();
         
         return response()->json(['data' => $invoice], 201);
     }
